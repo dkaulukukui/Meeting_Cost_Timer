@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Cost Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 30px 0;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        #startBtn:hover {
+            background: #45a049;
+        }
+
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+
+        #stopBtn:hover {
+            background: #da190b;
+        }
+
+        #resetBtn {
+            background: #ff9800;
+            color: white;
+        }
+
+        #resetBtn:hover {
+            background: #e68900;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .display {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .timer {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .cost {
+            font-size: 4em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .cost-label {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Meeting Cost Timer</h1>
+        
+        <div class="input-group">
+            <label for="people">Number of People:</label>
+            <input type="number" id="people" value="1" min="1" step="1">
+        </div>
+        
+        <div class="input-group">
+            <label for="hourlyWage">Average Hourly Wage ($):</label>
+            <input type="number" id="hourlyWage" value="100" min="0" step="1">
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">Start</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+        
+        <div class="display">
+            <div class="timer" id="timer">00:00:00</div>
+            <div class="cost-label">Total Meeting Cost</div>
+            <div class="cost" id="cost">$0.00</div>
+        </div>
+        
+        <div class="info">
+            <p>Click <strong>Start</strong> to begin tracking your meeting cost!</p>
+        </div>
+    </div>
+
+    <script>
+        let startTime = null;
+        let elapsedTime = 0;
+        let timerInterval = null;
+        let isRunning = false;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const timerDisplay = document.getElementById('timer');
+        const costDisplay = document.getElementById('cost');
+        const peopleInput = document.getElementById('people');
+        const hourlyWageInput = document.getElementById('hourlyWage');
+
+        function formatTime(milliseconds) {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function calculateCost(milliseconds) {
+            const people = parseInt(peopleInput.value) || 1;
+            const hourlyWage = parseFloat(hourlyWageInput.value) || 100;
+            const hours = milliseconds / (1000 * 60 * 60);
+            const cost = people * hourlyWage * hours;
+            return cost.toFixed(2);
+        }
+
+        function updateDisplay() {
+            const currentTime = Date.now();
+            const totalElapsed = elapsedTime + (startTime ? currentTime - startTime : 0);
+            
+            timerDisplay.textContent = formatTime(totalElapsed);
+            costDisplay.textContent = `$${calculateCost(totalElapsed)}`;
+        }
+
+        function startTimer() {
+            if (!isRunning) {
+                startTime = Date.now();
+                isRunning = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                peopleInput.disabled = true;
+                hourlyWageInput.disabled = true;
+                
+                timerInterval = setInterval(updateDisplay, 100);
+            }
+        }
+
+        function stopTimer() {
+            if (isRunning) {
+                elapsedTime += Date.now() - startTime;
+                startTime = null;
+                isRunning = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                
+                clearInterval(timerInterval);
+                updateDisplay();
+            }
+        }
+
+        function resetTimer() {
+            stopTimer();
+            elapsedTime = 0;
+            startTime = null;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            peopleInput.disabled = false;
+            hourlyWageInput.disabled = false;
+            
+            timerDisplay.textContent = '00:00:00';
+            costDisplay.textContent = '$0.00';
+        }
+
+        startBtn.addEventListener('click', startTimer);
+        stopBtn.addEventListener('click', stopTimer);
+        resetBtn.addEventListener('click', resetTimer);
+
+        // Update cost display when inputs change (only when timer is not running)
+        peopleInput.addEventListener('input', () => {
+            if (!isRunning) {
+                updateDisplay();
+            }
+        });
+
+        hourlyWageInput.addEventListener('input', () => {
+            if (!isRunning) {
+                updateDisplay();
+            }
+        });
+    </script>
+</body>
+</html>
